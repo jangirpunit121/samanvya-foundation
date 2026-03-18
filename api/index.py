@@ -1298,7 +1298,7 @@ def dashboard():
                 {str: d['mobile']}, 
                 {str: d['email']}, 
                 {str: d['date']}
-            ) for d in filtered_data]};
+             for d in filtered_data]};
             
             function viewDetails(index) {{
                 const candidate = candidates[index];

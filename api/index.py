@@ -664,23 +664,48 @@ def dashboard():
     if not session.get("admin"):
         return redirect("/admin")
 
-    today = datetime.now().date()
-    today_count = len([d for d in data_store if d["date"] == today])
+    # Get search and filter parameters
+    search_query = request.args.get('search', '').lower()
+    filter_date = request.args.get('date', '')
     
-    # Calculate course-wise distribution
-    mlt_count = len([d for d in data_store if d["course"] == "MLT" or d["course"] == "MLT (Medical Lab Technology)"])
-    grd_count = len([d for d in data_store if d["course"] == "GRD" or d["course"] == "GRD (General Radiology & Diagnosis)"])
+    today = datetime.now().date()
+    
+    # Filter data based on search and date
+    filtered_data = data_store.copy()
+    
+    if search_query:
+        filtered_data = [d for d in filtered_data if 
+                        search_query in d['name'].lower() or 
+                        search_query in d['mobile']]
+    
+    if filter_date:
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+            filtered_data = [d for d in filtered_data if d['date'] == filter_date_obj]
+        except:
+            pass
+    
+    # Calculate statistics based on filtered data
+    today_count = len([d for d in filtered_data if d["date"] == today])
+    mlt_count = len([d for d in filtered_data if "MLT" in d["course"]])
+    grd_count = len([d for d in filtered_data if "GRD" in d["course"]])
 
+    # Generate table rows
     rows = ""
-    for i, d in enumerate(data_store, 1):
+    for i, d in enumerate(filtered_data, 1):
         rows += f"""
         <tr style="background-color: {'#f8f9fa' if i % 2 == 0 else 'white'};">
             <td>{i}</td>
             <td><strong>{d['name']}</strong></td>
-            <td>{d['course'][:20] + '...' if len(d['course']) > 20 else d['course']}</td>
+            <td>{d['course'][:25] + '...' if len(d['course']) > 25 else d['course']}</td>
             <td>{d['mobile']}</td>
             <td>{d['email']}</td>
             <td>{d['date']}</td>
+            <td>
+                <button onclick="viewDetails({i-1})" class="action-btn view-btn" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
         </tr>
         """
 
@@ -802,6 +827,135 @@ def dashboard():
                 font-weight: 700;
             }}
             
+            /* Search and Filter Section */
+            .search-filter-section {{
+                background: white;
+                padding: 25px;
+                border-radius: 15px;
+                margin-bottom: 30px;
+                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            }}
+            
+            .search-filter-title {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: #333;
+                font-size: 18px;
+                font-weight: 600;
+                margin-bottom: 20px;
+            }}
+            
+            .search-filter-title i {{
+                color: #667eea;
+            }}
+            
+            .search-filter-grid {{
+                display: grid;
+                grid-template-columns: 2fr 1fr auto;
+                gap: 15px;
+                align-items: end;
+            }}
+            
+            .search-box {{
+                position: relative;
+            }}
+            
+            .search-box i {{
+                position: absolute;
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #999;
+            }}
+            
+            .search-box input {{
+                width: 100%;
+                padding: 12px 15px 12px 45px;
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                font-family: 'Poppins', sans-serif;
+                font-size: 14px;
+                transition: all 0.3s ease;
+            }}
+            
+            .search-box input:focus {{
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }}
+            
+            .date-filter {{
+                position: relative;
+            }}
+            
+            .date-filter i {{
+                position: absolute;
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #999;
+            }}
+            
+            .date-filter input {{
+                width: 100%;
+                padding: 12px 15px 12px 45px;
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                font-family: 'Poppins', sans-serif;
+                font-size: 14px;
+            }}
+            
+            .date-filter input:focus {{
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }}
+            
+            .filter-actions {{
+                display: flex;
+                gap: 10px;
+            }}
+            
+            .apply-filter-btn {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                white-space: nowrap;
+            }}
+            
+            .apply-filter-btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            }}
+            
+            .clear-filter-btn {{
+                background: #f0f0f0;
+                color: #666;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            
+            .clear-filter-btn:hover {{
+                background: #e0e0e0;
+                transform: translateY(-2px);
+            }}
+            
             .table-container {{
                 background: white;
                 border-radius: 20px;
@@ -859,7 +1013,123 @@ def dashboard():
                 background: #f8f9fa;
             }}
             
+            .action-btn {{
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 18px;
+                padding: 5px 10px;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }}
+            
+            .view-btn {{
+                color: #667eea;
+            }}
+            
+            .view-btn:hover {{
+                background: rgba(102, 126, 234, 0.1);
+            }}
+            
+            /* Modal Styles */
+            .modal {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(5px);
+                z-index: 1000;
+            }}
+            
+            .modal-content {{
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-width: 500px;
+                max-height: 80vh;
+                overflow-y: auto;
+            }}
+            
+            .modal-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #f0f0f0;
+            }}
+            
+            .modal-header h3 {{
+                color: #333;
+                font-size: 22px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .modal-header h3 i {{
+                color: #667eea;
+            }}
+            
+            .close-modal {{
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #999;
+                transition: color 0.3s ease;
+            }}
+            
+            .close-modal:hover {{
+                color: #333;
+            }}
+            
+            .detail-item {{
+                margin-bottom: 15px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 10px;
+            }}
+            
+            .detail-label {{
+                color: #666;
+                font-size: 13px;
+                font-weight: 500;
+                margin-bottom: 5px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }}
+            
+            .detail-label i {{
+                color: #667eea;
+                width: 20px;
+            }}
+            
+            .detail-value {{
+                color: #333;
+                font-size: 16px;
+                font-weight: 600;
+                padding-left: 25px;
+            }}
+            
             @media (max-width: 768px) {{
+                .search-filter-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .filter-actions {{
+                    flex-direction: column;
+                }}
+                
                 .header {{
                     flex-direction: column;
                     text-align: center;
@@ -883,7 +1153,7 @@ def dashboard():
                     <i class="fas fa-chart-line"></i>
                     Admin Dashboard
                 </h1>
-                <a href="/admin" class="logout-btn" onclick="sessionStorage.clear()">
+                <a href="/admin" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -931,13 +1201,44 @@ def dashboard():
                 </div>
             </div>
             
+            <!-- Search and Filter Section -->
+            <div class="search-filter-section">
+                <div class="search-filter-title">
+                    <i class="fas fa-search"></i>
+                    <span>Search & Filter Candidates</span>
+                </div>
+                
+                <div class="search-filter-grid">
+                    <div class="search-box">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="searchInput" placeholder="Search by name or mobile number..." value="{search_query}">
+                    </div>
+                    
+                    <div class="date-filter">
+                        <i class="fas fa-calendar"></i>
+                        <input type="date" id="dateFilter" value="{filter_date}">
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button class="apply-filter-btn" onclick="applyFilters()">
+                            <i class="fas fa-filter"></i>
+                            Apply Filters
+                        </button>
+                        <button class="clear-filter-btn" onclick="clearFilters()">
+                            <i class="fas fa-times"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-container">
                 <div class="table-header">
                     <h2>
                         <i class="fas fa-list"></i>
                         Candidate Details
                     </h2>
-                    <span class="total-count">Total: {len(data_store)} Records</span>
+                    <span class="total-count">Showing: {len(filtered_data)} of {len(data_store)} Records</span>
                 </div>
                 
                 <table>
@@ -949,14 +1250,117 @@ def dashboard():
                             <th>Mobile</th>
                             <th>Email</th>
                             <th>Date</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows if rows else '<tr><td colspan="6" style="text-align: center; padding: 30px;">No data available</td></tr>'}
+                        {rows if rows else '<tr><td colspan="7" style="text-align: center; padding: 30px;">No data available</td></tr>'}
                     </tbody>
                 </table>
             </div>
         </div>
+        
+        <!-- Details Modal -->
+        <div class="modal" id="detailsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-circle"></i> Candidate Details</h3>
+                    <button class="close-modal" onclick="closeModal()">&times;</button>
+                </div>
+                <div id="modalBody">
+                    <!-- Details will be inserted here -->
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function applyFilters() {{
+                const search = document.getElementById('searchInput').value;
+                const date = document.getElementById('dateFilter').value;
+                
+                let url = '/dashboard?';
+                if (search) url += `search=${{search}}&`;
+                if (date) url += `date=${{date}}`;
+                
+                window.location.href = url;
+            }}
+            
+            function clearFilters() {{
+                window.location.href = '/dashboard';
+            }}
+            
+            const candidates = {[
+                {str: d['name']}, 
+                {str: d['age']}, 
+                {str: d['gender']}, 
+                {str: d['qualification']}, 
+                {str: d['course']}, 
+                {str: d['mobile']}, 
+                {str: d['email']}, 
+                {str: d['date']}
+            ) for d in filtered_data]};
+            
+            function viewDetails(index) {{
+                const candidate = candidates[index];
+                
+                const modalBody = document.getElementById('modalBody');
+                modalBody.innerHTML = `
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-user"></i> Full Name</div>
+                        <div class="detail-value">${{candidate.name}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-calendar"></i> Age</div>
+                        <div class="detail-value">${{candidate.age}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-venus-mars"></i> Gender</div>
+                        <div class="detail-value">${{candidate.gender}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-graduation-cap"></i> Qualification</div>
+                        <div class="detail-value">${{candidate.qualification}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-book-open"></i> Course</div>
+                        <div class="detail-value">${{candidate.course}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-phone"></i> Mobile</div>
+                        <div class="detail-value">${{candidate.mobile}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-envelope"></i> Email</div>
+                        <div class="detail-value">${{candidate.email}}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><i class="fas fa-calendar-check"></i> Submission Date</div>
+                        <div class="detail-value">${{candidate.date}}</div>
+                    </div>
+                `;
+                
+                document.getElementById('detailsModal').style.display = 'block';
+            }}
+            
+            function closeModal() {{
+                document.getElementById('detailsModal').style.display = 'none';
+            }}
+            
+            // Close modal when clicking outside
+            window.onclick = function(event) {{
+                const modal = document.getElementById('detailsModal');
+                if (event.target == modal) {{
+                    modal.style.display = 'none';
+                }}
+            }}
+            
+            // Enter key in search input
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {{
+                if (e.key === 'Enter') {{
+                    applyFilters();
+                }}
+            }});
+        </script>
     </body>
     </html>
     """
